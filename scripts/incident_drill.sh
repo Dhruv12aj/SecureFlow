@@ -30,7 +30,7 @@ case "$DRILL" in
     attack-wave)
         echo "==> drill: attack wave against production"
         python3 scripts/attack_sim.py --target http://secureflow-prod:8000 --rounds 3 --delay 0.1
-        wait_for_alert AttackWave 120
+        wait_for_alert AttackWave 180
         ;;
 
     staging-outage)

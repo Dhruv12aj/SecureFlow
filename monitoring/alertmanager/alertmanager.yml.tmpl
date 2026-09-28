@@ -14,9 +14,10 @@ route:
   group_interval: 1m
   repeat_interval: 2h
   routes:
-    # staging warnings (e.g. the brute-force check every deploy runs) are
-    # expected noise - only critical staging alerts should reach a human
-    - matchers: [env="staging", severity="warning"]
+    # every staging deploy runs an attack test on purpose, so staging's
+    # security alerts are expected noise - the only staging alert worth an
+    # email is the service actually being down
+    - matchers: [env="staging", alertname!="SecureFlowDown"]
       receiver: "null"
 
 receivers:

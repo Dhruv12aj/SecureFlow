@@ -29,6 +29,13 @@ def test_metrics_endpoint_is_prometheus_format(client):
     assert 'secureflow_incidents_open{severity="CRITICAL"} 0.0' in body
 
 
+def test_attack_counters_start_at_zero(client):
+    # without these the first attack wave after a deploy never trips AttackWave
+    body = client.get("/metrics").text
+    for attack_type in ("sql_injection", "xss", "command_injection", "brute_force"):
+        assert f'secureflow_attacks_detected_total{{attack_type="{attack_type}"}} 0.0' in body
+
+
 def test_dashboard_is_served(client):
     res = client.get("/")
     assert res.status_code == 200

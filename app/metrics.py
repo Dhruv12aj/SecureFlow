@@ -7,6 +7,10 @@ every time) don't trip over "duplicated timeseries" errors.
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
 
 SEVERITIES = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
+ATTACK_TYPES = (
+    "command_injection", "sql_injection", "path_traversal", "xss",
+    "scanner", "recon", "brute_force",
+)
 
 
 class Metrics:
@@ -44,6 +48,11 @@ class Metrics:
         # Grafana panels and alert rules much less awkward
         for severity in SEVERITIES:
             self.incidents_open.labels(severity=severity).set(0)
+        # counters too: Prometheus' increase() can't see the jump from "no series"
+        # to 24 on the first attack, so without this the AttackWave alert would
+        # miss the very first wave after a fresh deployment
+        for attack_type in ATTACK_TYPES:
+            self.attacks.labels(attack_type=attack_type).inc(0)
 
     def refresh_incident_gauges(self, open_by_severity: dict, overdue: int) -> None:
         for severity in SEVERITIES:
