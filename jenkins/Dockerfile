@@ -5,7 +5,7 @@ FROM jenkins/jenkins:lts-jdk17
 
 USER root
 
-ARG TRIVY_VERSION=0.58.1
+ARG TRIVY_VERSION=0.69.3
 ARG SONAR_SCANNER_VERSION=6.2.1.4610
 
 RUN apt-get update \
@@ -19,11 +19,22 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends docker-ce-cli docker-buildx-plugin docker-compose-plugin \
     && rm -rf /var/lib/apt/lists/*
 
-# trivy + sonar-scanner (works on both Intel/AMD and ARM laptops)
+# trivy - pinned and checksum-verified (older trivy releases were pulled from
+# GitHub after the 2026 supply-chain incident, so we pin a known-good one)
 RUN ARCH=$(dpkg --print-architecture) \
-    && if [ "$ARCH" = "arm64" ]; then T_ARCH=ARM64; S_ARCH=linux-aarch64; else T_ARCH=64bit; S_ARCH=linux-x64; fi \
-    && curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-${T_ARCH}.tar.gz" \
-        | tar -xz -C /usr/local/bin trivy \
+    && if [ "$ARCH" = "arm64" ]; then T_ARCH=ARM64; else T_ARCH=64bit; fi \
+    && BASE="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}" \
+    && FILE="trivy_${TRIVY_VERSION}_Linux-${T_ARCH}.tar.gz" \
+    && curl -fsSL -o /tmp/$FILE "$BASE/$FILE" \
+    && curl -fsSL "$BASE/trivy_${TRIVY_VERSION}_checksums.txt" | grep " $FILE\$" > /tmp/trivy.sha256 \
+    && (cd /tmp && sha256sum -c trivy.sha256) \
+    && tar -xzf /tmp/$FILE -C /usr/local/bin trivy \
+    && rm /tmp/$FILE /tmp/trivy.sha256 \
+    && trivy --version
+
+# sonar-scanner (works on both Intel/AMD and ARM laptops)
+RUN ARCH=$(dpkg --print-architecture) \
+    && if [ "$ARCH" = "arm64" ]; then S_ARCH=linux-aarch64; else S_ARCH=linux-x64; fi \
     && curl -fsSL -o /tmp/scanner.zip \
         "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-${S_ARCH}.zip" \
     && unzip -q /tmp/scanner.zip -d /opt \
