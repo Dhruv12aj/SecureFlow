@@ -22,8 +22,13 @@ RUN useradd --create-home --uid 10001 secureflow \
     && mkdir -p /data && chown secureflow:secureflow /data
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# pip is only needed to install the dependencies - the running app never uses it.
+# Removing it also removes the libraries pip vendors (Trivy flagged msgpack
+# GHSA-6v7p-g79w-8964 and setuptools CVE-2025-47273 inside pip), and shrinks
+# what an attacker could use if they ever got a shell in the container.
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y pip \
+    && rm -rf /usr/local/lib/python3.12/ensurepip
 
 COPY app ./app
 
