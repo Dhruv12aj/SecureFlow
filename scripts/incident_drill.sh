@@ -10,13 +10,14 @@ DRILL="${1:-attack-wave}"
 AM=http://alertmanager:9093
 
 wait_for_alert() {
-    local alert="$1" timeout="$2"
+    local alert="$1" timeout="$2" env="$3"
+    local filter="filter=alertname%3D%22${alert}%22&filter=env%3D%22${env}%22"
     echo "==> waiting up to ${timeout}s for $alert to fire"
     for i in $(seq 1 $((timeout / 5))); do
-        firing=$(curl -fsS "$AM/api/v2/alerts?active=true&filter=alertname%3D%22${alert}%22" | jq 'length')
+        firing=$(curl -fsS "$AM/api/v2/alerts?active=true&${filter}" | jq 'length')
         if [ "$firing" -gt 0 ]; then
             echo "    $alert is FIRING after ~$((i * 5))s - email sent to the on-call address"
-            curl -fsS "$AM/api/v2/alerts?filter=alertname%3D%22${alert}%22" \
+            curl -fsS "$AM/api/v2/alerts?${filter}" \
                 | jq -r '.[] | "    \(.labels.env): \(.annotations.summary)"'
             return 0
         fi
@@ -30,13 +31,13 @@ case "$DRILL" in
     attack-wave)
         echo "==> drill: attack wave against production"
         python3 scripts/attack_sim.py --target http://secureflow-prod:8000 --rounds 3 --delay 0.1
-        wait_for_alert AttackWave 180
+        wait_for_alert AttackWave 180 production
         ;;
 
     staging-outage)
         echo "==> drill: staging outage"
         docker stop secureflow-staging
-        wait_for_alert SecureFlowDown 150 || { docker start secureflow-staging; exit 1; }
+        wait_for_alert SecureFlowDown 150 staging || { docker start secureflow-staging; exit 1; }
         echo "==> recovering staging"
         docker start secureflow-staging
         bash scripts/healthcheck.sh http://secureflow-staging:8000/health

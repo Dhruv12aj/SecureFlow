@@ -1,6 +1,6 @@
 # SecureFlow
 
-**Security incident management API with built-in attack detection.**
+**Security incident management API with built-in attack detection, delivered through a 7-stage Jenkins pipeline.**
 
 Small security teams get alerts from everywhere - WAF logs, phishing reports, failed logins - and
 usually end up tracking them in a spreadsheet. SecureFlow gives them one place to log, triage and
@@ -18,6 +18,8 @@ injection, scans it with sqlmap, or brute-forces API keys, SecureFlow blocks the
                      │
                      ├──► new incident: "SQL Injection Attempt" (HIGH, from 172.18.0.5)
                      └──► secureflow_attacks_detected_total{attack_type="sql_injection"} +1
+                                         │
+                                  Prometheus ──► Alertmanager ──► email to on-call
 ```
 
 ## Features
@@ -34,9 +36,10 @@ injection, scans it with sqlmap, or brute-forces API keys, SecureFlow blocks the
 
 ## Tech stack
 
-Python 3.12 · FastAPI · SQLite · Pytest · Docker
+Python 3.12, FastAPI, SQLite, Pytest · Docker, Docker Compose · Jenkins (configured as code) ·
+SonarQube · Bandit, pip-audit, Trivy · Prometheus, Grafana, Alertmanager (Gmail)
 
-## Run it locally
+## Run it locally (no Docker)
 
 ```powershell
 python -m venv .venv
@@ -45,34 +48,19 @@ pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
 
-- Dashboard: http://localhost:8000 (dev key: `analyst-dev-key`)
-- Swagger docs: http://localhost:8000/docs
+Open http://localhost:8000 (dashboard, dev key: `analyst-dev-key`) or http://localhost:8000/docs (Swagger).
 
-## Run the tests
+Run the tests:
 
 ```powershell
 pytest --cov=app
 ```
 
-82 tests (unit + integration), ~99% coverage.
-
-## Run it with Docker
-
-```powershell
-docker build -t secureflow:dev .
-docker run -d --name secureflow -p 8000:8000 secureflow:dev
-curl http://localhost:8000/health
-```
-
-## Try the detector
-
-With the app running, in another terminal:
+Try the detector from another terminal:
 
 ```powershell
 python scripts/attack_sim.py --target http://localhost:8000
 ```
-
-Every attack should come back `BLOCKED`, and the dashboard fills up with **AUTO** incidents.
 
 ## API
 
@@ -88,31 +76,56 @@ Every attack should come back `BLOCKED`, and the dashboard fills up with **AUTO*
 | GET | `/stats` | analyst | counts, overdue, highest risk |
 | GET | `/audit` | admin | who changed what |
 
-Send the key in an `X-API-Key` header. Keys are set with the `ANALYST_API_KEY` and
-`ADMIN_API_KEY` environment variables.
+Send the key in an `X-API-Key` header.
+
+## The pipeline
+
+```
+ Checkout ─► Build ─► Test ─► Code Quality ─► Security ─► Deploy: Staging ─► Release: Production ─► Monitoring
+```
+
+| Stage | What happens | Tools |
+|---|---|---|
+| **Build** | Versioned Docker image (`1.0.<build>` + git SHA), pushed to a local registry, build info archived | Docker, registry:2 |
+| **Test** | Unit and integration tests, JUnit results + HTML coverage report, fails under 80% coverage | Pytest, pytest-cov |
+| **Code Quality** | Custom "SecureFlow Gate" (coverage ≥ 80%, duplication ≤ 3%, A ratings), build waits for and enforces the gate | SonarQube |
+| **Security** | Code scan, dependency CVEs, secret scan, image scan - fails on anything HIGH/CRITICAL that has a fix ([findings](docs/SECURITY_NOTES.md)) | Bandit, pip-audit, Trivy |
+| **Deploy: Staging** | Compose deploy, health + version check, smoke test, attack simulation - **automatic rollback** if unhealthy | Docker Compose, bash |
+| **Release: Production** | Image promoted to `v1.0.<build>`, deployed with prod config, git tag + release notes pushed, optional approval gate | Docker Compose, git |
+| **Monitoring** | Prometheus/Grafana/Alertmanager deployed from code, scrape targets + alert rules verified, optional incident drills | Prometheus, Grafana, Alertmanager |
+
+Build parameters: `RELEASE_TO_PROD`, `REQUIRE_APPROVAL`, `SIMULATE_BAD_DEPLOY` (rollback demo),
+`INCIDENT_DRILL` (`attack-wave` / `staging-outage`).
+
+Full setup (Codespaces or Windows): **[docs/SETUP.md](docs/SETUP.md)** ·
+How it all fits together: **[docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md)**
+
+## Where things run
+
+| Service | URL |
+|---|---|
+| SecureFlow production | http://localhost:8000 |
+| SecureFlow staging | http://localhost:8001 |
+| Jenkins | http://localhost:8080 |
+| SonarQube | http://localhost:9000 |
+| Grafana | http://localhost:3000 |
+| Prometheus | http://localhost:9090 |
+| Alertmanager | http://localhost:9093 |
 
 ## Project layout
 
 ```
-app/
-  main.py        routes + detection middleware
-  detector.py    attack patterns and brute-force tracking
-  sla.py         response deadlines and risk score
-  database.py    SQLite storage + audit log
-  auth.py        API keys and roles
-  metrics.py     Prometheus metrics
-  static/        dashboard
-tests/           unit + integration tests
-scripts/         attack simulator
+app/            FastAPI app (main, detector, sla, database, auth, metrics, dashboard)
+tests/          unit + integration tests
+scripts/        deploy/rollback, health + smoke checks, attack simulator, drills
+deploy/         staging and production compose files + environment config
+monitoring/     Prometheus, Alertmanager, Grafana - all provisioned from code
+jenkins/        Jenkins image, plugins and configuration-as-code
+Jenkinsfile     the pipeline
 ```
-
-## Roadmap
-
-- [x] Incident API, detection, dashboard, tests, Docker image
-- [ ] Jenkins pipeline: Build → Test → Code Quality → Security → Deploy → Release → Monitoring
 
 ## A note on the attack simulator
 
 `scripts/attack_sim.py` only sends well-known test payloads and refuses to run against anything
-other than local hosts unless you explicitly say you own the target. It exists to prove the
-detector works - please don't point it at systems you don't own.
+other than the local lab hosts unless you explicitly say you own the target. It exists to prove
+the detector works - please don't point it at systems you don't own.
