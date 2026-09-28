@@ -1,0 +1,72 @@
+groups:
+  - name: secureflow-availability
+    rules:
+      - alert: SecureFlowDown
+        expr: up{job="secureflow"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SecureFlow {{ $labels.env }} is down"
+          description: "{{ $labels.instance }} has not answered a metrics scrape for over a minute."
+
+      - alert: HighErrorRate
+        expr: |
+          sum by (env) (rate(secureflow_http_requests_total{status=~"5.."}[2m]))
+            / sum by (env) (rate(secureflow_http_requests_total[2m])) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 5% of requests are failing on {{ $labels.env }}"
+          description: "5xx ratio is {{ $value | humanizePercentage }} over the last 2 minutes."
+
+      - alert: SlowResponses
+        expr: |
+          histogram_quantile(0.95,
+            sum by (env, le) (rate(secureflow_http_request_duration_seconds_bucket[5m]))) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 latency above 500ms on {{ $labels.env }}"
+          description: "p95 is {{ $value | humanizeDuration }}."
+
+  - name: secureflow-security
+    rules:
+      - alert: AttackWave
+        # more than 10 blocked attacks in a minute is not background noise any more
+        expr: sum by (env) (increase(secureflow_attacks_detected_total[1m])) > 10
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Attack wave against SecureFlow {{ $labels.env }}"
+          description: "{{ $value | printf \"%.0f\" }} attacks blocked in the last minute. Check the Live detections panel."
+
+      - alert: BruteForceDetected
+        expr: sum by (env) (increase(secureflow_attacks_detected_total{attack_type="brute_force"}[5m])) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API key brute forcing on {{ $labels.env }}"
+          description: "At least one IP hit the invalid-key threshold in the last 5 minutes."
+
+      - alert: CriticalIncidentsPiling
+        expr: sum by (env) (secureflow_incidents_open{severity="CRITICAL"}) >= 3
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $value }} CRITICAL incidents open on {{ $labels.env }}"
+          description: "Three or more critical incidents are unresolved - the team needs more hands."
+
+      - alert: IncidentsPastSLA
+        expr: sum by (env) (secureflow_incidents_overdue) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value }} incident(s) past their SLA on {{ $labels.env }}"
+          description: "Open incidents have gone past their response deadline."

@@ -1,0 +1,56 @@
+name: secureflow-monitoring
+
+services:
+  prometheus:
+    build: ./prometheus
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+    networks: [secureflow-net]
+    restart: unless-stopped
+
+  alertmanager:
+    build: ./alertmanager
+    container_name: alertmanager
+    environment:
+      GMAIL_USER: ${GMAIL_USER:-}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+    ports:
+      - "9093:9093"
+    volumes:
+      - alertmanager_data:/alertmanager
+    networks: [secureflow-net]
+    restart: unless-stopped
+
+  grafana:
+    build: ./grafana
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      # read-only access without logging in - handy for a wall screen / demo
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/secureflow.json
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks: [secureflow-net]
+    restart: unless-stopped
+    depends_on: [prometheus]
+
+networks:
+  secureflow-net:
+    external: true
+
+volumes:
+  prometheus_data:
+  alertmanager_data:
+  grafana_data:

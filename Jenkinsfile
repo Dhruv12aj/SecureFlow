@@ -1,6 +1,5 @@
 // SecureFlow CI/CD pipeline
 // Build -> Test -> Code Quality -> Security -> Deploy (staging) -> Release (prod) -> Monitoring
-// (stages are added one at a time)
 
 pipeline {
     agent any
@@ -24,6 +23,8 @@ pipeline {
             description: 'Pause for a manual OK before the production release')
         booleanParam(name: 'SIMULATE_BAD_DEPLOY', defaultValue: false,
             description: 'Rollback demo: break the staging deployment on purpose')
+        choice(name: 'INCIDENT_DRILL', choices: ['none', 'attack-wave', 'staging-outage'],
+            description: 'Run an incident drill after the monitoring checks')
     }
 
     environment {
@@ -192,6 +193,33 @@ pipeline {
             post {
                 success { archiveArtifacts artifacts: 'reports/release-notes-*.md', allowEmptyArchive: true }
             }
+        }
+
+        stage('Monitoring') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'gmail-smtp',
+                                                  usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASSWORD'),
+                                 string(credentialsId: 'alert-email-to', variable: 'ALERT_EMAIL_TO'),
+                                 string(credentialsId: 'grafana-admin-password', variable: 'GRAFANA_ADMIN_PASSWORD')]) {
+                    sh 'docker compose -f monitoring/docker-compose.yml up -d --build --remove-orphans'
+                }
+                sh 'bash scripts/verify_monitoring.sh'
+                script {
+                    if (params.INCIDENT_DRILL != 'none') {
+                        sh "bash scripts/incident_drill.sh ${params.INCIDENT_DRILL}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "SecureFlow v${env.APP_VERSION} built, tested, scanned, released and monitored."
+        }
+        failure {
+            // failed builds land in the same inbox as production alerts
+            sh 'bash scripts/notify_pipeline_failure.sh "$BUILD_URL"'
         }
     }
 }
