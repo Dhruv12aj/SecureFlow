@@ -18,6 +18,10 @@ pipeline {
     }
 
     parameters {
+        booleanParam(name: 'RELEASE_TO_PROD', defaultValue: true,
+            description: 'Promote to production once staging is healthy')
+        booleanParam(name: 'REQUIRE_APPROVAL', defaultValue: false,
+            description: 'Pause for a manual OK before the production release')
         booleanParam(name: 'SIMULATE_BAD_DEPLOY', defaultValue: false,
             description: 'Rollback demo: break the staging deployment on purpose')
     }
@@ -156,6 +160,37 @@ pipeline {
                         python3 scripts/attack_sim.py --target http://secureflow-staging:8000 --delay 0.1
                     '''
                 }
+            }
+        }
+
+        stage('Release: Production') {
+            when { expression { params.RELEASE_TO_PROD } }
+            steps {
+                script {
+                    if (params.REQUIRE_APPROVAL) {
+                        input message: "Release v${env.APP_VERSION} to production?", ok: 'Release'
+                    }
+                }
+                withCredentials([string(credentialsId: 'prod-analyst-key', variable: 'ANALYST_API_KEY'),
+                                 string(credentialsId: 'prod-admin-key',   variable: 'ADMIN_API_KEY')]) {
+                    sh '''
+                        echo "==> promoting $IMAGE:$APP_VERSION -> v$APP_VERSION"
+                        docker tag $IMAGE:$APP_VERSION $IMAGE:v$APP_VERSION
+                        docker tag $IMAGE:$APP_VERSION $IMAGE:latest
+                        docker push --quiet $IMAGE:v$APP_VERSION
+                        docker push --quiet $IMAGE:latest
+
+                        bash scripts/deploy.sh prod v$APP_VERSION
+                        bash scripts/smoke_test.sh http://secureflow-prod:8000
+                    '''
+                }
+                withCredentials([usernamePassword(credentialsId: 'github-creds',
+                                                  usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN')]) {
+                    sh 'bash scripts/release_tag.sh v$APP_VERSION'
+                }
+            }
+            post {
+                success { archiveArtifacts artifacts: 'reports/release-notes-*.md', allowEmptyArchive: true }
             }
         }
     }
