@@ -1,0 +1,29 @@
+name: secureflow-prod
+
+services:
+  secureflow:
+    image: ${REGISTRY:-localhost:5000}/secureflow:${IMAGE_TAG:?IMAGE_TAG is required}
+    container_name: secureflow-prod
+    env_file: prod.env
+    environment:
+      ANALYST_API_KEY: ${ANALYST_API_KEY:?set by Jenkins}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?set by Jenkins}
+      DATABASE_PATH: ${DATABASE_PATH_OVERRIDE:-/data/secureflow.db}
+    ports:
+      - "8000:8000"
+    volumes:
+      - prod_data:/data
+    networks: [secureflow-net]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+
+networks:
+  secureflow-net:
+    external: true
+
+volumes:
+  prod_data:

@@ -17,6 +17,11 @@ pipeline {
         pollSCM('H/2 * * * *')
     }
 
+    parameters {
+        booleanParam(name: 'SIMULATE_BAD_DEPLOY', defaultValue: false,
+            description: 'Rollback demo: break the staging deployment on purpose')
+    }
+
     environment {
         REGISTRY       = 'localhost:5000'
         IMAGE          = "${REGISTRY}/secureflow"
@@ -135,6 +140,22 @@ pipeline {
             }
             post {
                 always { archiveArtifacts artifacts: 'reports/security/**', allowEmptyArchive: true }
+            }
+        }
+
+        stage('Deploy: Staging') {
+            steps {
+                withCredentials([string(credentialsId: 'staging-analyst-key', variable: 'ANALYST_API_KEY'),
+                                 string(credentialsId: 'staging-admin-key',   variable: 'ADMIN_API_KEY')]) {
+                    withEnv(["BREAK_DEPLOY=${params.SIMULATE_BAD_DEPLOY}"]) {
+                        sh 'bash scripts/deploy.sh staging $APP_VERSION'
+                    }
+                    sh '''
+                        bash scripts/smoke_test.sh http://secureflow-staging:8000
+                        echo "==> checking the detector blocks real attacks"
+                        python3 scripts/attack_sim.py --target http://secureflow-staging:8000 --delay 0.1
+                    '''
+                }
             }
         }
     }

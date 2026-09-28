@@ -1,0 +1,25 @@
+name: secureflow-staging
+
+services:
+  secureflow:
+    image: ${REGISTRY:-localhost:5000}/secureflow:${IMAGE_TAG:?IMAGE_TAG is required}
+    container_name: secureflow-staging
+    env_file: staging.env
+    environment:
+      ANALYST_API_KEY: ${ANALYST_API_KEY:?set by Jenkins}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?set by Jenkins}
+      # only used by the rollback demo to deliberately break a deployment
+      DATABASE_PATH: ${DATABASE_PATH_OVERRIDE:-/data/secureflow.db}
+    ports:
+      - "8001:8000"
+    volumes:
+      - staging_data:/data
+    networks: [secureflow-net]
+    restart: unless-stopped
+
+networks:
+  secureflow-net:
+    external: true
+
+volumes:
+  staging_data:
