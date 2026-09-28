@@ -1,0 +1,85 @@
+# Jenkins Configuration as Code - the whole Jenkins setup lives in git.
+# Values like ${GITHUB_TOKEN} come from the .env file via docker compose.
+jenkins:
+  systemMessage: "SecureFlow CI/CD - configured as code"
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+unclassified:
+  location:
+    url: "http://localhost:8080/"
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "github-creds"
+              description: "GitHub user + personal access token"
+              username: "${GITHUB_USER}"
+              password: "${GITHUB_TOKEN}"
+          - string:
+              scope: GLOBAL
+              id: "sonar-token"
+              description: "SonarQube analysis token"
+              secret: "${SONAR_TOKEN}"
+          - string:
+              scope: GLOBAL
+              id: "staging-analyst-key"
+              secret: "${STAGING_ANALYST_KEY}"
+          - string:
+              scope: GLOBAL
+              id: "staging-admin-key"
+              secret: "${STAGING_ADMIN_KEY}"
+          - string:
+              scope: GLOBAL
+              id: "prod-analyst-key"
+              secret: "${PROD_ANALYST_KEY}"
+          - string:
+              scope: GLOBAL
+              id: "prod-admin-key"
+              secret: "${PROD_ADMIN_KEY}"
+          - usernamePassword:
+              scope: GLOBAL
+              id: "gmail-smtp"
+              description: "Gmail account + app password used by Alertmanager"
+              username: "${GMAIL_USER}"
+              password: "${GMAIL_APP_PASSWORD}"
+          - string:
+              scope: GLOBAL
+              id: "alert-email-to"
+              secret: "${ALERT_EMAIL_TO}"
+          - string:
+              scope: GLOBAL
+              id: "grafana-admin-password"
+              secret: "${GRAFANA_ADMIN_PASSWORD}"
+
+jobs:
+  - script: >
+      pipelineJob('secureflow') {
+        description('SecureFlow: build, test, quality, security, deploy, release, monitor')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('${REPO_URL}')
+                  credentials('github-creds')
+                }
+                branch('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(true)
+          }
+        }
+      }

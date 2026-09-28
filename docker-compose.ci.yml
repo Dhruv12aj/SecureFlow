@@ -1,0 +1,57 @@
+# The CI toolchain: Jenkins, SonarQube and a local image registry.
+#   docker network create secureflow-net
+#   docker compose -f docker-compose.ci.yml up -d --build
+name: secureflow-ci
+
+services:
+  jenkins:
+    build: ./jenkins
+    container_name: jenkins
+    user: root
+    ports:
+      - "8080:8080"
+    env_file: .env
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [ci, secureflow-net]
+    restart: unless-stopped
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      # Docker Desktop's WSL VM doesn't set vm.max_map_count high enough
+      # for Elasticsearch - skipping the check is fine for a local instance
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+      - sonar_extensions:/opt/sonarqube/extensions
+      - sonar_logs:/opt/sonarqube/logs
+    networks: [ci]
+    restart: unless-stopped
+
+  # every build pushes its versioned image here - this is our artifact store
+  registry:
+    image: registry:2
+    container_name: registry
+    ports:
+      - "5000:5000"
+    volumes:
+      - registry_data:/var/lib/registry
+    networks: [ci]
+    restart: unless-stopped
+
+networks:
+  ci:
+  secureflow-net:
+    external: true
+
+volumes:
+  jenkins_home:
+  sonar_data:
+  sonar_extensions:
+  sonar_logs:
+  registry_data:
