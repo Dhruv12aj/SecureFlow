@@ -1,0 +1,21 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# local data + build output
+*.db
+reports/
+
+# secrets
+.env
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
