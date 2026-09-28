@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SecureFlow</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">&#9670;</span>
+      <strong>SecureFlow</strong>
+      <span class="muted">Incident Management</span>
+    </div>
+    <div class="env">
+      <span id="health-dot" class="dot"></span>
+      <span id="env-label">connecting...</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="keybar" id="keybar">
+      <label for="api-key">API key</label>
+      <input id="api-key" type="password" placeholder="Paste your analyst or admin key">
+      <button id="save-key">Connect</button>
+      <span id="key-msg" class="muted"></span>
+    </section>
+
+    <section class="cards">
+      <div class="card"><span class="label">Open incidents</span><span class="value" id="c-open">-</span></div>
+      <div class="card critical"><span class="label">Critical open</span><span class="value" id="c-critical">-</span></div>
+      <div class="card warn"><span class="label">Past SLA</span><span class="value" id="c-overdue">-</span></div>
+      <div class="card auto"><span class="label">Auto-detected</span><span class="value" id="c-auto">-</span></div>
+    </section>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Incidents</h2>
+          <div class="filters">
+            <select id="f-severity">
+              <option value="">All severities</option>
+              <option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option>
+            </select>
+            <select id="f-status">
+              <option value="">All statuses</option>
+              <option>OPEN</option><option>INVESTIGATING</option><option>RESOLVED</option>
+            </select>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Title</th><th>Severity</th><th>Status</th><th>Source</th><th>Risk</th><th>SLA</th><th></th></tr>
+          </thead>
+          <tbody id="incident-rows">
+            <tr><td colspan="8" class="empty">Connect with an API key to load incidents.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <aside>
+        <section class="panel">
+          <h2>Report an incident</h2>
+          <form id="new-incident">
+            <input name="title" placeholder="Title, e.g. Phishing email reported" required minlength="3">
+            <div class="row">
+              <select name="severity">
+                <option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>CRITICAL</option>
+              </select>
+              <input name="source" placeholder="Source" required minlength="2">
+            </div>
+            <textarea name="description" rows="3" placeholder="What happened?"></textarea>
+            <button type="submit">Create incident</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <h2>Live detections</h2>
+          <ul id="detections" class="feed"><li class="muted">Nothing detected yet.</li></ul>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+:root {
+  --bg: #f4f6f9;
+  --panel: #ffffff;
+  --text: #1d2433;
+  --muted: #6b7385;
+  --line: #e3e7ee;
+  --accent: #2f6fed;
+  --critical: #d64545;
+  --high: #e8833a;
+  --medium: #d9b23c;
+  --low: #3f9c6d;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 28px;
+  background: #1d2433;
+  color: #fff;
+}
+.brand { display: flex; gap: 10px; align-items: baseline; }
+.brand strong { font-size: 18px; }
+.brand .muted { color: #9aa3b5; }
+.logo { color: #6ea0ff; }
+.env { display: flex; gap: 8px; align-items: center; color: #c9d0dd; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: #888; }
+.dot.ok { background: #47c47f; }
+.dot.bad { background: var(--critical); }
+
+main { max-width: 1280px; margin: 0 auto; padding: 22px 28px 40px; }
+.muted { color: var(--muted); }
+
+.keybar {
+  display: flex; gap: 10px; align-items: center;
+  background: var(--panel); border: 1px solid var(--line);
+  padding: 10px 14px; border-radius: 8px; margin-bottom: 18px;
+}
+.keybar input { width: 280px; }
+
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 14px 16px; border-left: 4px solid var(--accent);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.card.critical { border-left-color: var(--critical); }
+.card.warn { border-left-color: var(--high); }
+.card.auto { border-left-color: #7c5ce0; }
+.card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.card .value { font-size: 28px; font-weight: 600; }
+
+.layout { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
+.panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 16px; margin-bottom: 18px;
+}
+.panel h2 { font-size: 15px; margin: 0 0 12px; }
+.panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.panel-head h2 { margin: 0; }
+.filters { display: flex; gap: 8px; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; }
+td.empty { color: var(--muted); text-align: center; padding: 30px; }
+tr.overdue td:first-child { box-shadow: inset 3px 0 0 var(--critical); }
+.sub { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+.pill { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #fff; }
+.pill.CRITICAL { background: var(--critical); }
+.pill.HIGH { background: var(--high); }
+.pill.MEDIUM { background: var(--medium); }
+.pill.LOW { background: var(--low); }
+.tag { font-size: 11px; color: #7c5ce0; font-weight: 600; }
+.late { color: var(--critical); font-weight: 600; }
+
+input, select, textarea, button {
+  font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: #fff;
+}
+textarea { resize: vertical; }
+button { background: var(--accent); color: #fff; border: none; cursor: pointer; }
+button:hover { opacity: .9; }
+button.small { padding: 3px 8px; font-size: 12px; background: #eef2fb; color: var(--accent); }
+
+form { display: flex; flex-direction: column; gap: 8px; }
+form .row { display: flex; gap: 8px; }
+form .row > * { flex: 1; }
+
+.feed { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; }
+.feed li { padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.feed li:last-child { border-bottom: none; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  .keybar { flex-wrap: wrap; }
+  .keybar input { width: 100%; }
+  table { font-size: 13px; }
+}
