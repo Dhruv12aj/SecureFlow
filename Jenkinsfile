@@ -68,5 +68,30 @@ pipeline {
                 success { archiveArtifacts artifacts: 'reports/build-info.json', fingerprint: true }
             }
         }
+
+        stage('Test') {
+            steps {
+                sh '''
+                    . .venv/bin/activate
+                    echo "==> unit tests"
+                    pytest -m unit -q --junitxml=reports/junit-unit.xml --cov=app
+
+                    echo "==> integration tests"
+                    pytest -m integration -q --junitxml=reports/junit-integration.xml \
+                        --cov=app --cov-append \
+                        --cov-report=term --cov-report=xml:reports/coverage.xml \
+                        --cov-report=html:reports/htmlcov \
+                        --cov-fail-under=80
+                '''
+            }
+            post {
+                always {
+                    junit 'reports/junit-*.xml'
+                    publishHTML(target: [reportName: 'Coverage Report', reportDir: 'reports/htmlcov',
+                                         reportFiles: 'index.html', keepAll: true,
+                                         alwaysLinkToLastBuild: true, allowMissing: true])
+                }
+            }
+        }
     }
 }
