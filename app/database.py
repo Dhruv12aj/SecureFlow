@@ -104,7 +104,9 @@ class Database:
             clauses.append("source LIKE ?")
             params.append(f"%{source}%")
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-        query = f"SELECT * FROM incidents {where} ORDER BY id DESC"  # nosec B608 - only static clauses
+        # Bandit B608 reviewed: only the fixed clauses above end up in the string,
+        # every user-supplied value is bound through a ? placeholder
+        query = f"SELECT * FROM incidents {where} ORDER BY id DESC"  # nosec B608
         with self._conn() as conn:
             rows = conn.execute(query, params).fetchall()
         return [dict(r) for r in rows]
@@ -124,10 +126,12 @@ class Database:
         elif "status" in changes and changes["status"] != "RESOLVED":
             changes["resolved_at"] = None
 
+        # Bandit B608 reviewed: column names come from the UPDATABLE_FIELDS
+        # whitelist, the values are bound through ? placeholders
         assignments = ", ".join(f"{col} = ?" for col in changes)
         with self._conn() as conn:
             conn.execute(
-                f"UPDATE incidents SET {assignments} WHERE id = ?",  # nosec B608 - whitelisted columns
+                f"UPDATE incidents SET {assignments} WHERE id = ?",  # nosec B608
                 (*changes.values(), incident_id),
             )
         return self.get_incident(incident_id)

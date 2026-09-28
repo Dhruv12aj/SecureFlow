@@ -1,0 +1,5 @@
+# Accepted findings go here, one CVE per line, each with a reason and a
+# review date. Keep this list short - fixing is always the first choice.
+#
+# Example:
+# CVE-2024-00000  # affects the glibc iconv path, not reachable from our app (review 2026-12)

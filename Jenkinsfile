@@ -110,5 +110,32 @@ pipeline {
                 }
             }
         }
+
+        stage('Security') {
+            steps {
+                sh '''
+                    . .venv/bin/activate
+                    mkdir -p reports/security
+
+                    echo "==> Bandit (Python code)"
+                    bandit -r app -f json -o reports/security/bandit.json --exit-zero
+                    bandit -r app -ll
+
+                    echo "==> pip-audit (dependencies)"
+                    pip-audit -r requirements.txt -f json -o reports/security/pip-audit.json || true
+                    pip-audit -r requirements.txt --desc
+
+                    echo "==> Trivy (secrets in the repo)"
+                    trivy fs --scanners secret --skip-dirs .git,.venv,reports --exit-code 1 --no-progress .
+
+                    echo "==> Trivy (container image)"
+                    trivy image --format json -o reports/security/trivy-image.json --no-progress $IMAGE:$APP_VERSION
+                    trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress $IMAGE:$APP_VERSION
+                '''
+            }
+            post {
+                always { archiveArtifacts artifacts: 'reports/security/**', allowEmptyArchive: true }
+            }
+        }
     }
 }
