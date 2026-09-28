@@ -1,14 +1,10 @@
 {
-  // Linux workspace with Docker, used to run the whole CI/CD lab
-  // (Jenkins, SonarQube, registry, staging/prod, monitoring) in GitHub Codespaces.
+  // GitHub's standard Codespaces image - Docker and Python are already installed.
+  // Used to run the whole CI/CD lab (Jenkins, SonarQube, registry, staging/prod, monitoring).
   "name": "SecureFlow DevOps lab",
-  "image": "mcr.microsoft.com/devcontainers/python:3.12",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
-  },
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
   "hostRequirements": {
-    "cpus": 4,
-    "memory": "16gb"
+    "cpus": 4
   },
   "forwardPorts": [8080, 9000, 5000, 8001, 8000, 3000, 9090, 9093],
   "portsAttributes": {
@@ -21,10 +17,5 @@
     "9090": { "label": "Prometheus" },
     "9093": { "label": "Alertmanager" }
   },
-  "postCreateCommand": "pip install -r requirements-dev.txt && cp -n .env.example .env || true",
-  "customizations": {
-    "vscode": {
-      "extensions": ["ms-python.python", "ms-azuretools.vscode-docker"]
-    }
-  }
+  "postCreateCommand": "pip install --user -r requirements-dev.txt || true"
 }
