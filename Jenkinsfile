@@ -20,6 +20,7 @@ pipeline {
     environment {
         REGISTRY       = 'localhost:5000'
         IMAGE          = "${REGISTRY}/secureflow"
+        SONAR_HOST_URL = 'http://sonarqube:9000'
         DOCKER_NETWORK = 'secureflow-net'
     }
 
@@ -90,6 +91,22 @@ pipeline {
                     publishHTML(target: [reportName: 'Coverage Report', reportDir: 'reports/htmlcov',
                                          reportFiles: 'index.html', keepAll: true,
                                          alwaysLinkToLastBuild: true, allowMissing: true])
+                }
+            }
+        }
+
+        stage('Code Quality') {
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                        bash scripts/sonar_quality_gate.sh
+                        sonar-scanner \
+                            -Dsonar.host.url=$SONAR_HOST_URL \
+                            -Dsonar.token=$SONAR_TOKEN \
+                            -Dsonar.projectVersion=$APP_VERSION \
+                            -Dsonar.qualitygate.wait=true \
+                            -Dsonar.qualitygate.timeout=300
+                    '''
                 }
             }
         }
