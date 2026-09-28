@@ -1,0 +1,30 @@
+{
+  // Linux workspace with Docker, used to run the whole CI/CD lab
+  // (Jenkins, SonarQube, registry, staging/prod, monitoring) in GitHub Codespaces.
+  "name": "SecureFlow DevOps lab",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb"
+  },
+  "forwardPorts": [8080, 9000, 5000, 8001, 8000, 3000, 9090, 9093],
+  "portsAttributes": {
+    "8080": { "label": "Jenkins" },
+    "9000": { "label": "SonarQube" },
+    "5000": { "label": "Registry" },
+    "8001": { "label": "SecureFlow staging" },
+    "8000": { "label": "SecureFlow production" },
+    "3000": { "label": "Grafana" },
+    "9090": { "label": "Prometheus" },
+    "9093": { "label": "Alertmanager" }
+  },
+  "postCreateCommand": "pip install -r requirements-dev.txt && cp -n .env.example .env || true",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "ms-azuretools.vscode-docker"]
+    }
+  }
+}
